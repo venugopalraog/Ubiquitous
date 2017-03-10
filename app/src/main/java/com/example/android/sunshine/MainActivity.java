@@ -17,8 +17,12 @@ package com.example.android.sunshine;
 
 import android.content.Intent;
 import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.v4.app.LoaderManager;
 import android.support.v4.content.CursorLoader;
 import android.support.v4.content.Loader;
@@ -31,16 +35,35 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ProgressBar;
+import android.widget.Toast;
 
 import com.example.android.sunshine.data.SunshinePreferences;
 import com.example.android.sunshine.data.WeatherContract;
 import com.example.android.sunshine.sync.SunshineSyncUtils;
+import com.example.android.sunshine.utilities.SunshineWeatherUtils;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.ResultCallbacks;
+import com.google.android.gms.common.api.Status;
+import com.google.android.gms.wearable.Asset;
+import com.google.android.gms.wearable.DataApi;
+import com.google.android.gms.wearable.PutDataMapRequest;
+import com.google.android.gms.wearable.PutDataRequest;
+import com.google.android.gms.wearable.Wearable;
+
+import java.io.ByteArrayOutputStream;
 
 public class MainActivity extends AppCompatActivity implements
-        LoaderManager.LoaderCallbacks<Cursor>,
-        ForecastAdapter.ForecastAdapterOnClickHandler {
+        LoaderManager.LoaderCallbacks<Cursor>, ForecastAdapter.ForecastAdapterOnClickHandler,
+        GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
 
     private final String TAG = MainActivity.class.getSimpleName();
+
+    private static final String KEY_TEMPERATURE_HIGHEST = "temperatureHighest";
+    private static final String KEY_TEMPERATURE_LOWEST = "temperatureLowest";
+    private static final String KEY_WEATHER_ICON = "weatherIcon";
+    private static final String SUNSHINE_WEATHER_PATH = "/sunshine_weather";
+    public static final int ICON_QUALITY_PERCENTAGE = 100;
 
     /*
      * The columns of data that we are interested in displaying within our MainActivity's list of
@@ -78,6 +101,9 @@ public class MainActivity extends AppCompatActivity implements
     private int mPosition = RecyclerView.NO_POSITION;
 
     private ProgressBar mLoadingIndicator;
+
+    private GoogleApiClient mGoogleApiClient;
+
 
 
     @Override
@@ -154,6 +180,26 @@ public class MainActivity extends AppCompatActivity implements
 
         SunshineSyncUtils.initialize(this);
 
+        mGoogleApiClient = new GoogleApiClient.Builder(this)
+                                .addConnectionCallbacks(this)
+                                .addOnConnectionFailedListener(this)
+                                .addApi(Wearable.API)
+                                .build();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+
+        mGoogleApiClient.connect();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+
+        if (mGoogleApiClient.isConnected())
+            mGoogleApiClient.disconnect();
     }
 
     /**
@@ -235,7 +281,7 @@ public class MainActivity extends AppCompatActivity implements
     @Override
     public void onLoadFinished(Loader<Cursor> loader, Cursor data) {
 
-
+        updateWearable(data);
         mForecastAdapter.swapCursor(data);
         if (mPosition == RecyclerView.NO_POSITION) mPosition = 0;
         mRecyclerView.smoothScrollToPosition(mPosition);
@@ -342,5 +388,62 @@ public class MainActivity extends AppCompatActivity implements
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    private void updateWearable(Cursor cursor) {
+        cursor.moveToPosition(0);
+
+        int weatherId = cursor.getInt(MainActivity.INDEX_WEATHER_CONDITION_ID);
+        int weatherImageId = SunshineWeatherUtils.getSmallArtResourceIdForWeatherCondition(weatherId);
+        double highInCelsius = cursor.getDouble(MainActivity.INDEX_WEATHER_MAX_TEMP);
+        double lowInCelsius = cursor.getDouble(MainActivity.INDEX_WEATHER_MIN_TEMP);
+        Bitmap weatherIcon = BitmapFactory.decodeResource(getResources(), weatherImageId);
+
+        PutDataMapRequest mapRequest = PutDataMapRequest.create(SUNSHINE_WEATHER_PATH);
+
+        mapRequest.getDataMap().putString(KEY_TEMPERATURE_HIGHEST, String.valueOf(highInCelsius));
+        mapRequest.getDataMap().putString(KEY_TEMPERATURE_LOWEST, String.valueOf(lowInCelsius));
+        mapRequest.getDataMap().putAsset(KEY_WEATHER_ICON, bitmapToAsset(weatherIcon));
+
+        Log.d(TAG, String.format("Temperature values High:: %s Low:: %s", highInCelsius, lowInCelsius));
+
+        PutDataRequest request = mapRequest.asPutDataRequest();
+        request.setUrgent();
+
+        Wearable.DataApi.putDataItem(mGoogleApiClient, request).setResultCallback(new ResultCallbacks<DataApi.DataItemResult>() {
+            @Override
+            public void onSuccess(DataApi.DataItemResult dataItemResult) {
+                Log.d(TAG, "Update sent to wearable");
+                Toast.makeText(getApplicationContext(), "Data Sent Successfully to Wearable", Toast.LENGTH_SHORT)
+                     .show();
+            }
+
+            @Override
+            public void onFailure(Status status) {
+                Log.d(TAG, "Failed to send wearable update!");
+            }
+        });
+    }
+
+    private Asset bitmapToAsset(Bitmap bitmap) {
+            ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+            bitmap.compress(Bitmap.CompressFormat.PNG, ICON_QUALITY_PERCENTAGE, byteStream);
+            return Asset.createFromBytes(byteStream.toByteArray());
+    }
+
+    @Override
+    public void onConnected(@Nullable Bundle bundle) {
+        Log.d(TAG, "GoogleApiClient Connected");
+    }
+
+    @Override
+    public void onConnectionSuspended(int cause) {
+        Log.d(TAG, "GoogleApiClient Connection Suspended");
+    }
+
+    @Override
+    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+        Log.d(TAG, "GoogleApiClient Connection Failed");
+
     }
 }
