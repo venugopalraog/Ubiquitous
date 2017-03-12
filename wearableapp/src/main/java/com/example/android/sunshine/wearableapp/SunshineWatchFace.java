@@ -131,8 +131,8 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
         Date date;
         Bitmap weatherBitmap;
 
-        private String highestTemperature = "99";
-        private String lowestTemperature = "99";
+        private String highestTemperature = "65";
+        private String lowestTemperature = "45";
 
         boolean mAmbient;
         Calendar mCalendar;
@@ -188,11 +188,9 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
 
             date = new Date();
 
-/*
             int weatherIconSize = Float.valueOf(getResources().getDimension(R.dimen.weather_icon_size)).intValue();
             weatherBitmap = Bitmap.createScaledBitmap(BitmapFactory.decodeResource(getResources(), R.drawable.ic_light_rain),
                     weatherIconSize, weatherIconSize, false);
-*/
 
             mGoogleApiClient = new GoogleApiClient.Builder(SunshineWatchFace.this)
                     .addConnectionCallbacks(this)
@@ -358,15 +356,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
 
                 canvas.drawText(timeString, startX, startY, mTimerPaint);
 
-/*
-                String datetext  = mSimpleDateFormat.format(date);
-
-                startX = bounds.width() / 2 - mDatePaint.measureText(datetext) / 2;
-                startY = startY + mDatePaint.getTextSize();
-
-                canvas.drawText(datetext, startX, startY, mDatePaint);
-*/
-
                 float startHighTempX = bounds.width() / 2 - mTempHighPaint.measureText(highestTemperature) / 2  - 25;
                 startY = (bounds.height() / 2) + mYOffset;
 
@@ -445,6 +434,8 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
         }
 
         private void processDataItem(DataItem dataItem) {
+            Log.d(TAG, "processDataItem");
+
             DataMap dataMap = DataMapItem.fromDataItem(dataItem).getDataMap();
             final String latestHighestTemperature = dataMap.getString(KEY_TEMPERATURE_HIGHEST);
             final String latestLowestTemperature = dataMap.getString(KEY_TEMPERATURE_LOWEST);
@@ -495,10 +486,11 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
 
                 @Override
                 public void onResult(@NonNull DataItemBuffer dataItems) {
-                    Log.d(TAG, "onResult Data Received from App");
+                    Log.d(TAG, "onResult Data Received from App Data Items Count:: " + dataItems.getCount());
 
                     for (DataItem dataItem : dataItems) {
                         if (!dataItem.getUri().getPath().equalsIgnoreCase(SUNSHINE_WEATHER_PATH)) {
+                            Log.d(TAG, "URI Path not matched:: " + dataItem.getUri().getPath());
                             continue;
                         }
                         processDataItem(dataItem);

@@ -391,6 +391,9 @@ public class MainActivity extends AppCompatActivity implements
     }
 
     private void updateWearable(Cursor cursor) {
+        if (cursor.getCount() == 0) {
+            return;
+        }
         cursor.moveToPosition(0);
 
         int weatherId = cursor.getInt(MainActivity.INDEX_WEATHER_CONDITION_ID);
