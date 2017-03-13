@@ -399,14 +399,14 @@ public class MainActivity extends AppCompatActivity implements
 
         int weatherId = cursor.getInt(MainActivity.INDEX_WEATHER_CONDITION_ID);
         int weatherImageId = SunshineWeatherUtils.getSmallArtResourceIdForWeatherCondition(weatherId);
-        double highInCelsius = cursor.getDouble(MainActivity.INDEX_WEATHER_MAX_TEMP);
-        double lowInCelsius = cursor.getDouble(MainActivity.INDEX_WEATHER_MIN_TEMP);
+        String highInCelsius = SunshineWeatherUtils.formatTemperature(this, cursor.getDouble(MainActivity.INDEX_WEATHER_MAX_TEMP));
+        String lowInCelsius = SunshineWeatherUtils.formatTemperature(this, cursor.getDouble(MainActivity.INDEX_WEATHER_MIN_TEMP));
         Bitmap weatherIcon = BitmapFactory.decodeResource(getResources(), weatherImageId);
 
         PutDataMapRequest mapRequest = PutDataMapRequest.create(SUNSHINE_WEATHER_PATH);
 
-        mapRequest.getDataMap().putString(KEY_TEMPERATURE_HIGHEST, String.valueOf(highInCelsius));
-        mapRequest.getDataMap().putString(KEY_TEMPERATURE_LOWEST, String.valueOf(lowInCelsius));
+        mapRequest.getDataMap().putString(KEY_TEMPERATURE_HIGHEST, highInCelsius);
+        mapRequest.getDataMap().putString(KEY_TEMPERATURE_LOWEST, lowInCelsius);
         mapRequest.getDataMap().putAsset(KEY_WEATHER_ICON, bitmapToAsset(weatherIcon));
 
         Log.d(TAG, String.format("Temperature values High:: %s Low:: %s", highInCelsius, lowInCelsius));
