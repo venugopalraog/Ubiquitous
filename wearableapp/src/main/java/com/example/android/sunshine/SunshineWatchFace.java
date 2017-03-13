@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.example.android.sunshine.wearableapp;
+package com.example.android.sunshine;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -41,6 +41,7 @@ import android.view.SurfaceHolder;
 import android.view.WindowInsets;
 import android.widget.Toast;
 
+import com.example.android.sunshine.wearableapp.R;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.ResultCallback;
@@ -131,8 +132,8 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
         Date date;
         Bitmap weatherBitmap;
 
-        private String highestTemperature = "65";
-        private String lowestTemperature = "45";
+        private String highestTemperature = "-";
+        private String lowestTemperature = "-";
 
         boolean mAmbient;
         Calendar mCalendar;
@@ -193,15 +194,16 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                     weatherIconSize, weatherIconSize, false);
 
             mGoogleApiClient = new GoogleApiClient.Builder(SunshineWatchFace.this)
+                    .addApi(Wearable.API)
                     .addConnectionCallbacks(this)
                     .addOnConnectionFailedListener(this)
-                    .addApi(Wearable.API)
                     .build();
         }
 
         @Override
         public void onDestroy() {
             mUpdateTimeHandler.removeMessages(MSG_UPDATE_TIME);
+            releaseGoogleApiClient();
             super.onDestroy();
         }
 
@@ -225,16 +227,20 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                 mCalendar.setTimeZone(TimeZone.getDefault());
                 invalidate();
             } else {
-                if (mGoogleApiClient.isConnected()) {
-                    Wearable.DataApi.removeListener(mGoogleApiClient, this);
-                    mGoogleApiClient.disconnect();
-                }
+                releaseGoogleApiClient();
                 unregisterReceiver();
             }
 
             // Whether the timer should be running depends on whether we're visible (as well as
             // whether we're in ambient mode), so we may need to start or stop the timer.
             updateTimer();
+        }
+
+        private void releaseGoogleApiClient() {
+            if (mGoogleApiClient != null && mGoogleApiClient.isConnected()) {
+                Wearable.DataApi.removeListener(mGoogleApiClient, this);
+                mGoogleApiClient.disconnect();
+            }
         }
 
         private void registerReceiver() {
@@ -435,27 +441,32 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
 
         private void processDataItem(DataItem dataItem) {
             Log.d(TAG, "processDataItem");
+            if (dataItem.getUri().getPath().equalsIgnoreCase(SUNSHINE_WEATHER_PATH)) {
 
-            DataMap dataMap = DataMapItem.fromDataItem(dataItem).getDataMap();
-            final String latestHighestTemperature = dataMap.getString(KEY_TEMPERATURE_HIGHEST);
-            final String latestLowestTemperature = dataMap.getString(KEY_TEMPERATURE_LOWEST);
+                DataMap dataMap = DataMapItem.fromDataItem(dataItem).getDataMap();
+                final String latestHighestTemperature = dataMap.getString(KEY_TEMPERATURE_HIGHEST);
+                final String latestLowestTemperature = dataMap.getString(KEY_TEMPERATURE_LOWEST);
 
-            if (TextUtils.isEmpty(latestHighestTemperature) || TextUtils.isEmpty(latestLowestTemperature))
-                return;
+                if (TextUtils.isEmpty(latestHighestTemperature) ||
+                        TextUtils.isEmpty(latestLowestTemperature))
+                    return;
 
-            if (!latestHighestTemperature.equalsIgnoreCase(highestTemperature)
-                    || !latestLowestTemperature.equalsIgnoreCase(lowestTemperature)) {
+                if (!latestHighestTemperature.equalsIgnoreCase(highestTemperature) ||
+                        !latestLowestTemperature.equalsIgnoreCase(lowestTemperature)) {
 
-                final Asset iconAsset = dataMap.getAsset(KEY_WEATHER_ICON);
+                    final Asset iconAsset = dataMap.getAsset(KEY_WEATHER_ICON);
 
-                Log.d(TAG, "Received Data :: Low Temperature - " + lowestTemperature + " High Temperature - " + highestTemperature);
+                    Log.d(TAG, "Received Data :: Low Temperature - " + lowestTemperature + " High Temperature - " + highestTemperature);
 
-                new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        updateData(latestHighestTemperature, latestLowestTemperature, iconAsset);
-                    }
-                }).start();
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            updateData(latestHighestTemperature, latestLowestTemperature, iconAsset);
+                        }
+                    }).start();
+                }
+            } else {
+                Log.d(TAG, "URI Path not matched:: " + dataItem.getUri().getPath());
             }
         }
 
@@ -498,10 +509,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                     Log.d(TAG, "onResult Data Received from App Data Items Count:: " + dataItems.getCount());
 
                     for (DataItem dataItem : dataItems) {
-                        if (!dataItem.getUri().getPath().equalsIgnoreCase(SUNSHINE_WEATHER_PATH)) {
-                            Log.d(TAG, "URI Path not matched:: " + dataItem.getUri().getPath());
-                            continue;
-                        }
                         processDataItem(dataItem);
                     }
 
@@ -527,17 +534,10 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             Log.d(TAG, "onDataChanged Data Received from App");
 
             for (DataEvent event : dataEventBuffer) {
-                if (event.getType() != DataEvent.TYPE_CHANGED) {
-                    continue;
+                if (event.getType() == DataEvent.TYPE_CHANGED) {
+                    DataItem dataItem = event.getDataItem();
+                    processDataItem(dataItem);
                 }
-                DataItem dataItem = event.getDataItem();
-
-
-                if (!dataItem.getUri().getPath().equalsIgnoreCase(SUNSHINE_WEATHER_PATH)) {
-                    continue;
-                }
-
-                processDataItem(dataItem);
             }
         }
     }

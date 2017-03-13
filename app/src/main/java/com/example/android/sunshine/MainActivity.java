@@ -196,10 +196,11 @@ public class MainActivity extends AppCompatActivity implements
 
     @Override
     protected void onStop() {
-        super.onStop();
 
-        if (mGoogleApiClient.isConnected())
+        if (mGoogleApiClient != null && mGoogleApiClient.isConnected())
             mGoogleApiClient.disconnect();
+
+        super.onStop();
     }
 
     /**
