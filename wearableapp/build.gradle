@@ -6,7 +6,7 @@ android {
     buildToolsVersion "25.0.2"
 
     defaultConfig {
-        applicationId "com.example.android.sunshine.wearableapp"
+        applicationId "com.example.android.sunshine"
         minSdkVersion 20
         targetSdkVersion 25
         versionCode 1
@@ -22,8 +22,7 @@ android {
 
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
-    compile 'com.android.support:support-v13:25.0.1'
     compile 'com.google.android.support:wearable:2.0.0'
     compile 'com.google.android.gms:play-services-wearable:10.2.0'
-    provided 'com.google.android.wearable:wearable:1.0.0'
+    provided 'com.google.android.wearable:wearable:2.0.0'
 }

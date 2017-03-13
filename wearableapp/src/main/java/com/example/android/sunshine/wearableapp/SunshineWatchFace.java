@@ -450,14 +450,23 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
 
                 Log.d(TAG, "Received Data :: Low Temperature - " + lowestTemperature + " High Temperature - " + highestTemperature);
 
-                highestTemperature = latestHighestTemperature;
-                lowestTemperature = latestLowestTemperature;
-
-                Bitmap weatherIcon = assetToBitmap(iconAsset);
-                int weatherIconSize = Float.valueOf(getResources().getDimension(R.dimen.weather_icon_size)).intValue();
-                weatherBitmap = Bitmap.createScaledBitmap(weatherIcon, weatherIconSize, weatherIconSize, false);
-                invalidate();
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        updateData(latestHighestTemperature, latestLowestTemperature, iconAsset);
+                    }
+                }).start();
             }
+        }
+
+        private void updateData(String latestHighestTemperature, String latestLowestTemperature, Asset iconAsset) {
+            highestTemperature = latestHighestTemperature;
+            lowestTemperature = latestLowestTemperature;
+
+            Bitmap weatherIcon = assetToBitmap(iconAsset);
+            int weatherIconSize = Float.valueOf(getResources().getDimension(R.dimen.weather_icon_size)).intValue();
+            weatherBitmap = Bitmap.createScaledBitmap(weatherIcon, weatherIconSize, weatherIconSize, false);
+            invalidate();
         }
 
         public Bitmap assetToBitmap(Asset asset) {
